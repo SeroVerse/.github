@@ -1,0 +1,40 @@
+name: Shared Python CI
+
+on:
+  workflow_call:
+    inputs:
+      python-versions:
+        required: false
+        type: string
+        default: '["3.12", "3.13"]'
+
+jobs:
+  qa-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ${{ fromJson(inputs.python-versions) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Critical for hatch-vcs to detect git tags!
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+
+      - name: Sync dependencies
+        run: uv sync --locked --all-extras --dev
+
+      - name: Lint & Format (Ruff)
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Type Check (ty)
+        run: uv run ty check
+
+      - name: Test (pytest)
+        run: uv run pytest
