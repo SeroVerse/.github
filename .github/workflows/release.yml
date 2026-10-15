@@ -1,0 +1,61 @@
+# SeroVerse/.github/.github/workflows/release.yml
+name: Shared PyPI Release
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: false
+        type: string
+        default: "pypi"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository with full tag history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Mandatory for hatch-vcs to stamp the git tag version
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: false
+
+      - name: Build sdist and wheel
+        run: uv build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+    permissions:
+      id-token: write # Required for PyPI Trusted Publishing & PEP 740 attestations
+      contents: read
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Sign distributions with PEP 740 digital attestations
+        uses: astral-sh/attest-action@v0.0.6
+        with:
+          subject-path: "dist/*"
+
+      - name: Publish to PyPI via OIDC
+        run: uv publish --trusted-publishing always
