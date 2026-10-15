@@ -1,2 +1,2 @@
 # SeroVerse
-The home of _in silico serotyping_
+The home for _in silico serotyping_
